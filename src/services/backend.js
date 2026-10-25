@@ -27,7 +27,14 @@ const seedMessages = [
 
 const seedFeed = ['Game started — Classic mode. Good luck!'];
 
-let state = { messages: [...seedMessages], feed: [...seedFeed] };
+const defaultScores = () => ({
+  You: { tags: 0, revives: 0, flags: 0, hill: 0 },
+  Maya: { tags: 0, revives: 0, flags: 0, hill: 0 },
+  Jordan: { tags: 0, revives: 0, flags: 0, hill: 0 },
+  Riley: { tags: 0, revives: 0, flags: 0, hill: 0 },
+});
+
+let state = { messages: [...seedMessages], feed: [...seedFeed], scores: defaultScores(), tournament: null, season: 'Season 1' };
 const listeners = new Set();
 
 function save() {
@@ -44,7 +51,9 @@ function load() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.messages) && Array.isArray(parsed.feed)) state = parsed;
+        if (parsed && Array.isArray(parsed.messages) && Array.isArray(parsed.feed)) {
+          state = { ...state, ...parsed, scores: parsed.scores || defaultScores() };
+        }
       }
     }
   } catch (e) { /* start from seeds */ }
@@ -101,6 +110,64 @@ export const backend = {
   addFeed(text) {
     state = { ...state, feed: [text, ...state.feed].slice(0, 30) };
     notify();
+  },
+
+  // Phase 3 — leaderboard, tournaments, seasons.
+  getScores: () => JSON.parse(JSON.stringify(state.scores)),
+  getTournament: () => state.tournament,
+  getSeason: () => state.season,
+
+  recordTag(tagger) {
+    const scores = { ...state.scores };
+    if (!scores[tagger]) scores[tagger] = { tags: 0, revives: 0, flags: 0, hill: 0 };
+    scores[tagger].tags += 1;
+    state = { ...state, scores };
+    notify();
+  },
+
+  recordRevive(name) {
+    const scores = { ...state.scores };
+    if (!scores[name]) scores[name] = { tags: 0, revives: 0, flags: 0, hill: 0 };
+    scores[name].revives += 1;
+    state = { ...state, scores };
+    notify();
+  },
+
+  recordFlag(name) {
+    const scores = { ...state.scores };
+    if (!scores[name]) scores[name] = { tags: 0, revives: 0, flags: 0, hill: 0 };
+    scores[name].flags += 1;
+    state = { ...state, scores };
+    notify();
+  },
+
+  recordHill(name) {
+    const scores = { ...state.scores };
+    if (!scores[name]) scores[name] = { tags: 0, revives: 0, flags: 0, hill: 0 };
+    scores[name].hill += 1;
+    state = { ...state, scores };
+    notify();
+  },
+
+  resetSeason() {
+    const n = parseInt((state.season.match(/\d+/) || ['1'])[0], 10) + 1;
+    state = { ...state, scores: defaultScores(), season: `Season ${n}` };
+    notify();
+  },
+
+  createTournament() {
+    const code = Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+    state = { ...state, tournament: { code, teams: ['Aurora Crew', 'School Squad'], status: 'Open — share the code with friends' } };
+    notify();
+    return state.tournament;
+  },
+
+  joinTournament(code) {
+    const clean = (code || '').trim().toUpperCase();
+    if (!clean) return null;
+    state = { ...state, tournament: { code: clean, teams: ['Aurora Crew', 'School Squad'], status: 'Joined — waiting for the bracket' } };
+    notify();
+    return state.tournament;
   },
 };
 
