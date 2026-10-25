@@ -1,5 +1,6 @@
-// Phase 1: mock location maths. Real GPS comes in Phase 2
-// (expo-location + react-native-maps) — this interface stays the same.
+// Phase 2a: this now blurs REAL GPS input from expo-location.
+// Map rendering moved to OpenStreetMap tiles (src/components/OsmMap.js)
+// so the same code works on web + native with no Google Maps API key.
 //
 // blurLocation() simulates the privacy rule from the spec:
 //   * exact location is NEVER posted
