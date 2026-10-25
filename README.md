@@ -1,6 +1,6 @@
-# Tag — real-life tag with friends (Phase 2a: real map + GPS)
+# Tag — real-life tag with friends (Phase 2b: backend, chat, feed, revive)
 
-**Phase 2a is built: real GPS + real street map. Other players are still simulated until the backend chunk, Bluetooth tags are still mock, and chat/revive are not built yet.**
+**Phase 2b is built: a backend layer (`src/services/backend.js`) powering group chat with emoji reactions, a live feed, and ghost revive challenges. The backend runs on-device for now (web: localStorage) — multi-phone sync needs a cloud project plugged into that one file, which is the next step. Bluetooth tags are still mock.**
 
 ## What works now
 - **Sign up (mock):** name + age. Under 13 requires a parent email + consent tick before you can continue. No data leaves the phone in Phase 1.
@@ -9,8 +9,14 @@
   - Colour-coded dots, faded trails, 5-minute countdown ring with sonar ripple on re-ping, a ghost 👻 where Riley was tagged, and a safe-zone circle where Sam is — Sam posts **no ping at all**
   - A live feed, and a TAG button that only glows and works within 10 ft — use the “Simulate 8 ft” button to test it, then tap TAG to see confetti and Maya turn into a ghost
 
+## What is new in Phase 2b
+- **Tabs on the game screen:** 🗺️ Map / 💬 Chat / 📜 Feed.
+- **Group chat:** send messages, tap emoji reactions (👍 🔥 😂 🎉 👻) to add/remove yours, with counts. Seeded messages from Maya/Jordan/Riley show reactions working; "Simulate a friend reply" lets you test without a second phone.
+- **Live feed:** tags, pings, GPS lock, and revives all flow through the backend layer, so Map, Chat, and Feed never drift apart.
+- **Ghost revive:** tagged players (and you, via "Simulate: I got tagged") become ghosts. Tap "Revive challenge" and tap 1→5 in order within 30 seconds to come back — with confetti and a feed event.
+
 ## What is deliberately NOT built yet
-Real Bluetooth LE tags (confirmed on both phones), group chat with emoji reactions, ghost revive challenges, a backend, and real auth. Other players on the map are still simulated around your real location until the backend chunk lands — a real backend is what lets other phones' pings appear here.
+Real Bluetooth LE tags (confirmed on both phones), real auth, and cloud multi-phone sync. Other players on the map are still simulated around your real location — plugging Supabase/Firebase into `src/services/backend.js` is what lets other phones' pings and messages appear here.
 
 ## Run it to test
 ```bash

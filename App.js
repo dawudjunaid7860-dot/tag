@@ -19,7 +19,7 @@ export default function App() {
         <HomeScreen user={user} onStartGame={setGame} onSignOut={() => setUser(null)} />
       )}
       {user && game && (
-        <MapScreen game={game} onEndGame={() => setGame(null)} />
+        <MapScreen game={game} user={user} onEndGame={() => setGame(null)} />
       )}
     </>
   );
