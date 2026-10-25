@@ -5,6 +5,10 @@ export const GAME_MODES = [
   { id: 'classic', name: 'Classic', desc: 'Last player standing wins.' },
   { id: 'infection', name: 'Infection', desc: 'Tagged players join the taggers.' },
   { id: 'assassin', name: 'Assassin', desc: 'Everyone has one secret target.' },
+  { id: 'freeze', name: 'Freeze Tag', desc: 'Tagged players freeze — a teammate tags them back to thaw them.' },
+  { id: 'hideseek', name: 'Hide & Seek', desc: 'One seeker, everyone else hides. Found players are out.' },
+  { id: 'flag', name: 'Capture the Flag', desc: 'Steal the other team flag and bring it home without getting tagged.' },
+  { id: 'hill', name: 'King of the Hill', desc: 'Hold the hill circle the longest to win.' },
 ];
 
 export const MOCK_FRIENDS = [
