@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Location from 'expo-location';
 import OsmMap from '../components/OsmMap';
+import ChatView from '../components/ChatView';
+import ReviveChallenge from '../components/ReviveChallenge';
+import { backend } from '../services/backend';
 import { blurLocation } from '../utils/blurLocation';
 
 const PING_INTERVAL = 300; // 5 minutes, per spec
@@ -27,7 +30,7 @@ function simulatedOthers(center) {
   ];
 }
 
-export default function MapScreen({ game, onEndGame }) {
+export default function MapScreen({ game, user, onEndGame }) {
   const [gps, setGps] = useState(null); // {lat, lng, accuracy}
   const [locStatus, setLocStatus] = useState('loading'); // loading | real | fallback
   const [center, setCenter] = useState(FALLBACK);
@@ -37,8 +40,14 @@ export default function MapScreen({ game, onEndGame }) {
   const [pingCount, setPingCount] = useState(1);
   const [sonarKey, setSonarKey] = useState(0);
   const [nearestFeet, setNearestFeet] = useState(25);
-  const [feed, setFeed] = useState(['Game started — Classic mode. Good luck!']);
+  const [feed, setFeed] = useState(backend.getFeed());
   const [confetti, setConfetti] = useState(false);
+  const [tab, setTab] = useState('map'); // map | chat | feed
+  const [reviving, setReviving] = useState(null); // player being revived, or null
+  const userName = (user && user.name) || 'You';
+
+  // Live feed lives in the backend layer, not in this screen.
+  useEffect(() => backend.subscribe((s) => setFeed([...s.feed])), []);
   const watchRef = useRef(null);
 
   const glow = useRef(new Animated.Value(0)).current;
@@ -71,7 +80,7 @@ export default function MapScreen({ game, onEndGame }) {
         setCenter(c);
         setLocStatus('real');
         setPlayers(buildPlayers(c, null));
-        setFeed((f) => ['📍 Real GPS locked in — your ping is blurred to ~1 block.', ...f].slice(0, 8));
+        backend.addFeed('📍 Real GPS locked in — your ping is blurred to ~1 block.');
         watchRef.current = await Location.watchPositionAsync(
           { accuracy: Location.Accuracy.Balanced, distanceInterval: 10, timeInterval: 5000 },
           (p) => {
@@ -134,7 +143,7 @@ export default function MapScreen({ game, onEndGame }) {
     });
     setPingCount((c) => c + 1);
     setSonarKey((k) => k + 1);
-    setFeed((f) => [`Ping #${pingCount + 1} posted — locations blurred to ~1 block.`, ...f].slice(0, 8));
+    backend.addFeed(`Ping #${pingCount + 1} posted — locations blurred to ~1 block.`);
   };
 
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
@@ -145,9 +154,25 @@ export default function MapScreen({ game, onEndGame }) {
     if (!inRange) return;
     setConfetti(true);
     setPlayers((prev) => prev.map((p) => (p.id === 'u2' ? { ...p, ghost: true } : p)));
-    setFeed((f) => ['🎉 You tagged Maya! She is now a ghost — she can revive with a challenge (next chunk).', ...f].slice(0, 8));
+    backend.addFeed('🎉 You tagged Maya! She is now a ghost — revive her with the challenge below.');
     setTimeout(() => setConfetti(false), 2500);
   };
+
+  const simulateTagged = () => {
+    setPlayers((prev) => prev.map((p) => (p.id === 'u1' ? { ...p, ghost: true } : p)));
+    backend.addFeed('👻 You got tagged! Complete the revive challenge to come back.');
+  };
+
+  const revivePlayer = (player) => {
+    setPlayers((prev) => prev.map((p) => (p.id === player.id ? { ...p, ghost: false } : p)));
+    setReviving(null);
+    setConfetti(true);
+    backend.addFeed(`✨ ${player.name} revived! Back in the game.`);
+    setTimeout(() => setConfetti(false), 2500);
+  };
+
+  const ghosts = players.filter((p) => p.ghost);
+  const youGhost = players.find((p) => p.id === 'u1' && p.ghost);
 
   return (
     <ScrollView style={styles.wrap} contentContainerStyle={{ paddingBottom: 30 }}>
@@ -167,6 +192,25 @@ export default function MapScreen({ game, onEndGame }) {
         </Text>
       </View>
 
+      <View style={styles.tabBar}>
+        {['map', 'chat', 'feed'].map((t) => (
+          <TouchableOpacity key={t} style={[styles.tabBtn, tab === t && styles.tabBtnActive]} onPress={() => setTab(t)}>
+            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t === 'map' ? '🗺️ Map' : t === 'chat' ? '💬 Chat' : '📜 Feed'}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {tab === 'chat' && <ChatView userName={userName} />}
+      {tab === 'feed' && (
+        <View>
+          <Text style={styles.h2}>Live feed</Text>
+          {feed.map((f, i) => (
+            <Text key={i} style={styles.feedItem}>• {f}</Text>
+          ))}
+        </View>
+      )}
+      {tab === 'map' && (
+      <View>
       <View style={styles.countRow}>
         <View style={styles.ring}>
           <Text style={styles.ringText}>{mm}:{ss}</Text>
@@ -188,7 +232,7 @@ export default function MapScreen({ game, onEndGame }) {
         <TouchableOpacity style={styles.mapBtn} onPress={() => gps && setCenter({ lat: gps.lat, lng: gps.lng })}><Text style={styles.mapBtnText}>◎ Recentre on me</Text></TouchableOpacity>
         <TouchableOpacity style={styles.mapBtn} onPress={postPing}><Text style={styles.mapBtnText}>📍 Ping now (test)</Text></TouchableOpacity>
       </View>
-      <Text style={styles.note}>Other players are still simulated around your real location — a real backend (next chunk) is what lets other phones' pings appear here. Map: © OpenStreetMap contributors.</Text>
+      <Text style={styles.note}>Other players are still simulated around your real location — cloud sync (next backend step) is what lets other phones' pings and messages appear here. Map: © OpenStreetMap contributors.</Text>
 
       <View style={styles.proxBox}>
         <Text style={styles.proxTitle}>Bluetooth proximity — MOCK (next chunk)</Text>
@@ -199,16 +243,28 @@ export default function MapScreen({ game, onEndGame }) {
         </View>
       </View>
 
-      <Animated.View style={{ opacity: inRange ? 1 : 0.55, transform: [{ scale: inRange ? glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) : 1 }] }}>
-        <TouchableOpacity style={[styles.tagBtn, inRange && styles.tagBtnHot]} onPress={doTag} disabled={!inRange}>
-          <Text style={styles.tagText}>{inRange ? '⚡ TAG!' : 'TAG (get within 10 ft)'}</Text>
+      <Animated.View style={{ opacity: inRange && !youGhost ? 1 : 0.55, transform: [{ scale: inRange && !youGhost ? glow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] }) : 1 }] }}>
+        <TouchableOpacity style={[styles.tagBtn, inRange && !youGhost && styles.tagBtnHot]} onPress={doTag} disabled={!inRange || !!youGhost}>
+          <Text style={styles.tagText}>{youGhost ? '👻 You are a ghost — revive first!' : inRange ? '⚡ TAG!' : 'TAG (get within 10 ft)'}</Text>
         </TouchableOpacity>
       </Animated.View>
 
-      <Text style={styles.h2}>Live feed</Text>
-      {feed.map((f, i) => (
-        <Text key={i} style={styles.feedItem}>• {f}</Text>
-      ))}
+      <View style={styles.ghostBox}>
+        <Text style={styles.ghostTitle}>👻 Ghosts — revive with a challenge</Text>
+        {ghosts.length === 0 && <Text style={styles.ghostSub}>No ghosts right now. Tag Maya (Simulate 8 ft → TAG) or tap below to get tagged yourself.</Text>}
+        {ghosts.map((g) => (
+          <View key={g.id} style={styles.ghostRow}>
+            <Text style={styles.ghostName}>{g.name} is a ghost</Text>
+            <TouchableOpacity style={styles.reviveBtn} onPress={() => setReviving(g)}><Text style={styles.reviveText}>Revive challenge</Text></TouchableOpacity>
+          </View>
+        ))}
+        <TouchableOpacity style={styles.simTagBtn} onPress={simulateTagged}><Text style={styles.simTagText}>Simulate: I got tagged</Text></TouchableOpacity>
+      </View>
+      {reviving && (
+        <ReviveChallenge playerName={reviving.name} onSuccess={() => revivePlayer(reviving)} onCancel={() => setReviving(null)} />
+      )}
+      </View>
+      )}
     </ScrollView>
   );
 }
@@ -244,6 +300,20 @@ const styles = StyleSheet.create({
   tagBtn: { marginHorizontal: 20, backgroundColor: '#374151', borderRadius: 18, padding: 18, alignItems: 'center' },
   tagBtnHot: { backgroundColor: '#22C55E', shadowColor: '#22C55E', shadowOpacity: 0.9, shadowRadius: 20, elevation: 12 },
   tagText: { color: '#fff', fontWeight: '900', fontSize: 20, letterSpacing: 1 },
+  tabBar: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 14, backgroundColor: '#1F2937', borderRadius: 12, padding: 4 },
+  tabBtn: { flex: 1, borderRadius: 9, paddingVertical: 10, alignItems: 'center' },
+  tabBtnActive: { backgroundColor: '#22C55E' },
+  tabText: { color: '#9CA3AF', fontWeight: '700' },
+  tabTextActive: { color: '#04140A' },
+  ghostBox: { marginHorizontal: 20, marginTop: 20, backgroundColor: '#1F2937', borderRadius: 14, padding: 14 },
+  ghostTitle: { color: '#fff', fontWeight: '800' },
+  ghostSub: { color: '#9CA3AF', marginTop: 6, lineHeight: 18 },
+  ghostRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  ghostName: { color: '#E5E7EB', fontWeight: '700' },
+  reviveBtn: { backgroundColor: '#A78BFA', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  reviveText: { color: '#1E1B4B', fontWeight: '800' },
+  simTagBtn: { marginTop: 12, alignItems: 'center' },
+  simTagText: { color: '#9CA3AF' },
   h2: { color: '#fff', fontWeight: '800', fontSize: 18, marginHorizontal: 20, marginTop: 22, marginBottom: 8 },
   feedItem: { color: '#E5E7EB', marginHorizontal: 20, marginBottom: 6, lineHeight: 18 },
   note: { color: '#6B7280', marginHorizontal: 20, marginTop: 4, lineHeight: 18 },
