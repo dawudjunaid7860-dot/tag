@@ -1,6 +1,6 @@
-# Tag — real-life tag with friends (Phase 2b: backend, chat, feed, revive)
+# Tag — real-life tag with friends (Phase 3: modes, power-ups, replay, leaderboard, tournaments, anti-cheat)
 
-**Phase 2b is built: a backend layer (`src/services/backend.js`) powering group chat with emoji reactions, a live feed, and ghost revive challenges. The backend runs on-device for now (web: localStorage) — multi-phone sync needs a cloud project plugged into that one file, which is the next step. Bluetooth tags are still mock.**
+**Phase 3 is built: all the ideas from the brainstorm, EXCEPT the parent/under-13 ones (no parent view, no play-area boundary, no danger ping — left out on purpose). Modes: Classic, Infection, Assassin, Freeze Tag, Hide & Seek, Capture the Flag, King of the Hill. Power-ups: Decoy Ping, Ghost Mode, Shield. Plus leaderboard + seasons, tournament codes, tag replay, speed-check anti-cheat, and both-phone tag confirmation (simulated until real Bluetooth). Multi-phone sync and real Bluetooth are still to come.**
 
 ## What works now
 - **Sign up (mock):** name + age. Under 13 requires a parent email + consent tick before you can continue. No data leaves the phone in Phase 1.
